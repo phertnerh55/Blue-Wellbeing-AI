@@ -1,0 +1,103 @@
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import {getAuth,onAuthStateChanged,createUserWithEmailAndPassword,signInWithEmailAndPassword,signOut,sendPasswordResetEmail} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import {getFirestore,doc,getDoc,setDoc,collection,onSnapshot} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const S={user:null,beach:'Diani',mood:null,mf:'All',
+beaches:{Diani:{s:92,b:'relaxation and yoga',f:[['Air',95],['UV',78],['Waves',92],['Crowd',85]]},Watamu:{s:89,b:'mindfulness and nature walks',f:[['Air',92],['UV',80],['Waves',88],['Crowd',90]]},Nyali:{s:75,b:'jogging',f:[['Air',70],['UV',65],['Waves',76],['Crowd',55]]},Tiwi:{s:84,b:'quiet meditation',f:[['Air',88],['UV',74],['Waves',82],['Crowd',92]]}},
+listings:[{id:1,name:'Sunrise yoga on the sand',type:'Yoga session',beach:'Diani',price:1500,status:'approved',owner:'Palm Shore Resort'},{id:2,name:'Mangrove kayak tour',type:'Eco tour',beach:'Watamu',price:3000,status:'approved',owner:'Palm Shore Resort'},{id:3,name:'Ocean-view massage',type:'Massage',beach:'Diani',price:4500,status:'approved',owner:'Sea Breeze Hotel'},{id:4,name:'Guided sunset meditation',type:'Meditation',beach:'Nyali',price:1200,status:'pending',owner:'Sea Breeze Hotel'}],
+bookings:[{id:1,listing:3,guest:'Amina',status:'confirmed'}],nid:5,nb:2,live:false,photos:{}};
+const moods={Stressed:['a quiet sunrise walk','Watamu'],Tired:['gentle ocean viewing and breathing','Tiwi'],Energetic:['beach running or paddleboarding','Nyali'],Low:['a guided beach meditation','Diani']};
+const FT=[['AI beach recommendations','Matches beaches to your age, fitness, goals, weather, tides and crowds.'],['Personalized wellness plans','Daily schedules for stress reduction, fitness and recovery.'],['Real-time wellness index','A score from air quality, temperature, UV, waves, wind and crowds.'],['Ocean therapy assistant','Science-backed benefits of sea air, blue space and swimming.'],['Mental health check-in','Quick questions on mood, stress, energy and sleep.'],['Safety and risk alerts','High tide, currents, jellyfish, heat stress and UV warnings.'],['Smart route planner','Walking, cycling and transport options with travel times.'],['AR beach guide','Point your camera to see exercise zones and safe swimming areas.'],['Blue wellbeing tracker','Steps, calories, meditation and swimming time, with weekly reports.'],['Community activities','Yoga, cleanups, retreats, running clubs and guided meditation.'],['Eco-conscious assistant','Finds eco-friendly beaches and rewards responsible tourism.'],['Local wellness marketplace','Coaches, yoga instructors, guides and therapists in one place.'],['AI voice companion','A spoken morning briefing of beach conditions and activities.'],['Blue carbon dashboard','Mangrove ecosystems, climate benefits and conservation projects.']];
+const money=n=>'KES '+Number(n).toLocaleString(),L=id=>S.listings.find(l=>String(l.id)===String(id)),ph=n=>S.photos[n]?`<img class="ph" src="${esc(S.photos[n])}" alt="${n} beach">`:'';
+const chips=(arr,cur,k)=>`<div class="chips">${arr.map(n=>`<button class="chip" data-${k}="${n}" aria-pressed="${cur===n}">${n}</button>`).join('')}</div>`;
+const bars=b=>b.f.map(x=>`<div class="bar"><span>${x[0]}</span><div><i style="width:${x[1]}%"></i></div><b>${x[1]}</b></div>`).join('');
+const idx=()=>{const b=S.beaches[S.beach];return `<div class="card">${ph(S.beach)}${chips(Object.keys(S.beaches),S.beach,'beach')}<div class="big">${b.s}<small>/100</small></div><p class="sub" style="margin:6px 0">${S.beach} is best for ${b.b}.</p>${bars(b)}</div>`};
+function nav(p){const u=S.user,l=[['home','Home'],['beaches','Beaches'],['features','Features'],['market','Marketplace'],['about','About']];
+document.getElementById('nav').innerHTML=l.map(x=>`<a href="#${x[0]}" ${p===x[0]?'aria-current="page"':''}>${x[1]}</a>`).join('')+(u?`<a href="#dash" class="cta" ${p==='dash'?'aria-current="page"':''}>Dashboard</a><button class="lk" data-out>Log out</button>`:`<a href="#login" class="cta" ${p==='login'?'aria-current="page"':''}>Login</a>`)}
+const P={
+home:()=>`<div class="hero"><div class="wrap hg"><div><h1>Blue<br>Wellbeing <span>AI</span></h1><p class="tg">Your AI-powered coastal wellness companion</p><p class="sub">Combining tourism, wellness, AI and coastal resources, the app goes beyond recommending beaches. It becomes a complete wellness companion for tourists visiting the Kenyan coast.</p><a class="btn" href="#beaches">See beach scores</a> <a class="btn alt" href="#login">Log in</a></div>
+<div class="card">${ph('Diani')}<h3>Today at Diani Beach</h3><div class="big">${S.beaches.Diani.s}<small>/100</small></div><p class="sub" style="margin:6px 0 0">Excellent conditions for a sunrise yoga session.</p></div></div></div>
+<div class="wrap"><section><ul class="pill"><li>Tourism</li><li>Wellness</li><li>AI technology</li><li>Coastal resources</li><li>Sustainable future</li></ul></section>
+<div class="core"><h2>Core function</h2><p>Blue Wellbeing AI helps tourists find the best coastal locations and activities for their physical, mental and emotional wellbeing through time with the ocean.</p></div>
+<section><h2>Three ways to use it</h2><div class="row"><div class="card"><h3>Tourists</h3><p class="sub">Check beach scores, get mood-based suggestions and book wellness offers.</p></div><div class="card"><h3>Hotels and sellers</h3><p class="sub">List yoga, massage, tours and retreats, and manage bookings.</p></div><div class="card"><h3>Admins</h3><p class="sub">Approve listings, set beach scores and track activity.</p></div></div></section>
+<div class="usp"><h2>Unique selling proposition</h2><p>An AI-powered coastal wellness tourism platform that personalizes ocean-based health experiences, improving physical and mental wellbeing while promoting sustainable coastal tourism.</p></div></div>`,
+beaches:()=>`<div class="wrap pg"><h2>Real-time coastal wellness index</h2><p class="sub">Scores combine air quality, temperature, UV, waves, wind and crowd density (sample data).</p><div class="narrow" style="max-width:620px;margin:0">${idx()}</div></div>`,
+features:()=>`<div class="wrap pg"><h2>Features the app could include</h2><p class="sub">Fourteen ways the companion supports visitors.</p><div class="grid">${FT.map(f=>`<div class="card"><h3>${f[0]}</h3><p>${f[1]}</p></div>`).join('')}</div></div>`,
+market:()=>{const o=S.listings.filter(l=>l.status==='approved'&&(S.mf==='All'||l.beach===S.mf)),t=S.user&&S.user.role==='tourist';
+return `<div class="wrap pg"><h2>Wellness marketplace</h2><p class="sub">Offers from approved local hotels and wellness providers.${t?'':' <a href="#login">Log in as a tourist</a> to book.'}</p>${chips(['All',...Object.keys(S.beaches)],S.mf,'mf')}<div class="list">${o.length?o.map(l=>`<div class="item"><div><b>${esc(l.name)}</b><small>${esc(l.type)} &middot; ${esc(l.beach)} &middot; ${esc(l.owner)} &middot; ${money(l.price)}</small></div>${t?`<button class="b" data-book="${l.id}">Book</button>`:''}</div>`).join(''):'<div class="empty">No approved offers here yet.</div>'}</div></div>`},
+about:()=>`<div class="wrap pg"><h2>About the project</h2><div class="row"><div class="card"><h3>Who made it</h3><p class="sub">Blue Wellbeing AI is a project of the Tourism and Hospitality Association (THATUM) at the Technical University of Mombasa, focused on sustainable development.</p></div><div class="card"><h3>What it aims to do</h3><p class="sub">Help visitors improve physical and mental wellbeing through the ocean, while promoting sustainable coastal tourism and protecting ecosystems like mangroves.</p></div></div></div>`,
+login:()=>{const a=S.fbUser;
+if(a)return `<div class="wrap pg"><div class="card narrow"><h2>Choose your role</h2><p class="sub">Signed in as ${esc(a.email)}.</p><div class="f"><label>I am a<select id="lr"><option value="tourist">Tourist</option><option value="seller">Hotel or wellness seller</option></select></label><label>Display name<input id="ln"></label><button class="btn" data-prof>Continue</button><small id="msg" class="sub" style="margin:0"></small></div></div></div>`;
+const up=S.mode==='up';return `<div class="wrap pg"><div class="card narrow"><h2>${up?'Create account':'Log in'}</h2><div class="f"><label>Email<input id="em" type="email" autocomplete="email"></label><label>Password<input id="pw" type="password" autocomplete="${up?'new-password':'current-password'}"></label><button class="btn" data-auth>${up?'Sign up':'Log in'}</button><small id="msg" class="sub" style="margin:0">${S.live?'':'Demo mode: add your Firebase settings to enable real accounts.'}</small><button class="b alt" data-mode>${up?'I already have an account':'Create an account'}</button>${up?'':'<button class="b alt" data-reset>Forgot password</button>'}</div></div></div>`},
+dash:()=>{if(!S.user)return P.login();const u=S.user;return `<div class="wrap pg"><h2>${u.role==='admin'?'Admin':u.role==='seller'?'Hotel':'Tourist'} dashboard</h2><p class="sub">Signed in as ${esc(u.name)}.</p>${D[u.role]()}</div>`}};
+const D={tourist:()=>{const mine=S.bookings.filter(x=>x.guest===S.user.name),m=S.mood&&moods[S.mood];
+return `<div class="row"><div class="card"><h3>Mental health check-in</h3><p class="sub">How are you feeling today?</p>${chips(Object.keys(moods),S.mood,'mood')}${m?`<div class="tip">You seem ${S.mood.toLowerCase()} today. We recommend ${m[0]} at ${m[1]} Beach (score ${S.beaches[m[1]].s}).</div>`:'<div class="empty">Pick a mood for a suggestion.</div>'}</div>
+<div class="card"><h3>My bookings</h3><div class="list">${mine.length?mine.map(x=>`<div class="item"><div><b>${esc(L(x.listing).name)}</b><small>${esc(L(x.listing).beach)} &middot; ${money(L(x.listing).price)}</small></div><span class="tag ${x.status}">${x.status}</span></div>`).join(''):'<div class="empty">Nothing booked. Visit the <a href="#market">marketplace</a>.</div>'}</div></div></div>`},
+seller:()=>{const me=S.user.name,mine=S.listings.filter(l=>l.owner===me),ids=mine.map(l=>l.id),inc=S.bookings.filter(x=>ids.includes(x.listing)),rev=inc.filter(x=>x.status==='confirmed').reduce((a,x)=>a+L(x.listing).price,0);
+return `<div class="stats"><div class="stat"><b>${mine.length}</b><span>My listings</span></div><div class="stat"><b>${inc.length}</b><span>Bookings</span></div><div class="stat"><b>${money(rev)}</b><span>Confirmed revenue</span></div></div>
+<div class="row"><div class="card"><h3>Add a wellness offer</h3><div class="f"><label>Offer name<input id="n"></label><label>Type<select id="t"><option>Yoga session</option><option>Massage</option><option>Meditation</option><option>Eco tour</option><option>Fitness class</option></select></label><label>Beach<select id="bh">${Object.keys(S.beaches).map(n=>`<option>${n}</option>`).join('')}</select></label><label>Price (KES)<input id="p" type="number" min="0"></label><button class="b" data-add>Submit for approval</button><small id="msg" class="sub" style="margin:0"></small></div></div>
+<div class="card"><h3>My listings</h3><div class="list">${mine.map(l=>`<div class="item"><div><b>${esc(l.name)}</b><small>${esc(l.beach)} &middot; ${money(l.price)}</small></div><span class="tag ${l.status}">${l.status}</span></div>`).join('')||'<div class="empty">No listings yet.</div>'}</div></div></div>
+<div class="card"><h3>Incoming bookings</h3><div class="list">${inc.length?inc.map(x=>`<div class="item"><div><b>${esc(x.guest)}</b><small>${esc(L(x.listing).name)}</small></div>${x.status==='pending'?`<button class="b" data-conf="${x.id}">Confirm</button>`:'<span class="tag confirmed">confirmed</span>'}</div>`).join(''):'<div class="empty">No bookings yet.</div>'}</div></div>`},
+admin:()=>{const pend=S.listings.filter(l=>l.status==='pending');
+return `<div class="stats"><div class="stat"><b>${S.listings.length}</b><span>Listings</span></div><div class="stat"><b>${pend.length}</b><span>Awaiting approval</span></div><div class="stat"><b>${S.bookings.length}</b><span>Bookings</span></div><div class="stat"><b>${new Set(S.listings.map(l=>l.owner)).size}</b><span>Sellers</span></div></div>
+<div class="row"><div class="card"><h3>Approval queue</h3><div class="list">${pend.length?pend.map(l=>`<div class="item"><div><b>${esc(l.name)}</b><small>${esc(l.owner)} &middot; ${esc(l.beach)} &middot; ${money(l.price)}</small></div><div class="act"><button class="b" data-ok="${l.id}">Approve</button><button class="b alt" data-no="${l.id}">Reject</button></div></div>`).join(''):'<div class="empty">All caught up.</div>'}</div></div>
+<div class="card"><h3>Beach wellness scores</h3><div class="f">${Object.keys(S.beaches).map(n=>`<label>${n}<input type="number" min="0" max="100" value="${S.beaches[n].s}" data-score="${n}"></label>`).join('')}</div></div>${S.live?`<div class="card"><h3>Beach photos</h3><p class="sub">Upload your own photo for each beach.</p><div class="f">${Object.keys(S.beaches).map(n=>`<label>${n}<input type="file" accept="image/*" data-photo="${n}"></label>`).join('')}<small id="pm" class="sub"></small></div></div>`:''}</div>`}};
+function draw(){let p=(location.hash||'#home').slice(1);if(!P[p])p='home';document.getElementById('app').innerHTML=P[p]();nav(p);document.getElementById('nav').classList.remove('open');document.getElementById('menu').setAttribute('aria-expanded','false')}
+document.getElementById('menu').onclick=e=>{const o=document.getElementById('nav').classList.toggle('open');e.currentTarget.setAttribute('aria-expanded',o)};
+document.addEventListener('click',e=>{const t=e.target.closest('button');if(!t||t.id==='menu')return;const d=t.dataset,u=S.user;
+if(d.beach)S.beach=d.beach;else if(d.mood)S.mood=d.mood;else if(d.mf)S.mf=d.mf;
+else if(d.book&&u)S.bookings.push({id:S.nb++,listing:+d.book,guest:u.name,status:'pending'});
+else if(d.conf)S.bookings.find(x=>x.id==d.conf).status='confirmed';
+else if(d.ok)L(+d.ok).status='approved';else if(d.no)L(+d.no).status='rejected';
+else if(d.out!==undefined){S.user=null;location.hash='#home';draw();return}
+else if(d.login!==undefined){const n=document.getElementById('ln').value.trim();if(!n){document.getElementById('msg').textContent='Enter a name to continue.';return}S.user={role:document.getElementById('lr').value,name:n};location.hash='#dash';draw();return}
+else if(d.add!==undefined){const n=document.getElementById('n').value.trim(),p=+document.getElementById('p').value;if(!n||!(p>0)){document.getElementById('msg').textContent='Enter a name and a price above 0.';return}
+S.listings.push({id:S.nid++,name:n,type:document.getElementById('t').value,beach:document.getElementById('bh').value,price:p,status:'pending',owner:u.name})}
+else return;draw()});
+document.addEventListener('change',e=>{const n=e.target.dataset.score;if(n)S.beaches[n].s=Math.max(0,Math.min(100,+e.target.value||0))});
+
+// ===== Firebase settings: paste yours from Project settings > Your apps > Web app =====
+const CFG={apiKey:"YOUR_API_KEY",authDomain:"YOUR_PROJECT_ID.firebaseapp.com",projectId:"YOUR_PROJECT_ID",appId:"YOUR_APP_ID"};
+let auth,db,UID=null,IS_ADMIN=false,priv=[];const A={};
+window.addEventListener('hashchange',draw);draw();
+const warn=t=>{const b=document.getElementById('ban');b.hidden=false;b.firstChild.textContent=t};
+function soft(){const a=document.activeElement;if(a&&/INPUT|SELECT/.test(a.tagName))return;draw()}
+function rebuild(){S.listings=(A.listings||[]).flatMap(d=>(d.items||[]).map(i=>({...i,owner:d.owner,ownerId:d.id,status:(A.appr||{})[i.id]||'pending'})));
+S.bookings=(A.bookings||[]).flatMap(d=>(d.items||[]).map(i=>({...i,guest:d.guest,guestId:d.id,status:(A.conf||{})[i.id]?'confirmed':'pending'}))).filter(b=>L(b.listing));
+if(A.scores)for(const n in S.beaches)if(A.scores[n]!=null)S.beaches[n].s=A.scores[n];
+S.photos=A.photos||{};const p=A.profile;S.user=IS_ADMIN?{role:'admin',name:(S.fbUser&&S.fbUser.email)||'Admin'}:(p?{role:p.role,name:p.name}:null);soft()}
+const watch=(c,k,f,l)=>l.push(onSnapshot(collection(db,c),s=>{A[k]=f(s);rebuild()},()=>warn('Could not load '+c+'. Check your Firestore rules.')));
+const raw=s=>s.docs.map(d=>({id:d.id,...d.data()})),map=(s,f)=>Object.fromEntries(s.docs.map(d=>[d.id,f(d)]));
+function start(){const pub=[];
+watch('listings','listings',raw,pub);watch('approvals','appr',s=>map(s,d=>d.data().status),pub);
+watch('config','scores',s=>map(s,d=>d.data()).scores||null,pub);watch('photos','photos',s=>map(s,d=>d.data().url),pub);
+onAuthStateChanged(auth,async u=>{priv.forEach(f=>f());priv=[];UID=u?u.uid:null;S.fbUser=u;IS_ADMIN=false;A.profile=null;A.bookings=[];A.conf={};
+if(u){try{IS_ADMIN=(await getDoc(doc(db,'admins',u.uid))).exists()}catch(e){}
+priv.push(onSnapshot(doc(db,'profiles',u.uid),s=>{A.profile=s.exists()?s.data():null;rebuild()},()=>{}));
+watch('bookings','bookings',raw,priv);watch('confirmations','conf',s=>map(s,()=>1),priv)}
+rebuild()})}
+if(CFG.apiKey.startsWith('YOUR')){warn('Demo mode: paste your Firebase settings into the CFG block (see README) to enable real accounts.')}
+else{const app=initializeApp(CFG);auth=getAuth(app);db=getFirestore(app);S.live=true;S.listings=[];S.bookings=[];start()}
+const nice=e=>({'auth/invalid-credential':'Wrong email or password.','auth/email-already-in-use':'That email already has an account.','auth/weak-password':'Use a password of at least 6 characters.','auth/invalid-email':'Enter a valid email address.','permission-denied':'Not allowed. Check your role and the Firestore rules.'}[e.code&&e.code.replace('firestore/','')]||('Could not complete that ('+(e.code||e.message)+').'));
+document.addEventListener('click',async e=>{if(!S.live)return;const t=e.target.closest('button');if(!t)return;const d=t.dataset,u=S.user;
+if(!['book','conf','ok','no','add','out','auth','mode','reset','prof'].some(k=>d[k]!==undefined))return;e.stopImmediatePropagation();
+const say=x=>{const o=document.getElementById('msg');o?o.textContent=x:warn(x)},val=i=>document.getElementById(i).value.trim();
+try{
+if(d.mode!==undefined){S.mode=S.mode==='up'?'in':'up';draw();return}
+if(d.out!==undefined){await signOut(auth);location.hash='#home';return}
+if(d.auth!==undefined){const em=val('em'),pw=document.getElementById('pw').value;if(!em||!pw){say('Enter your email and password.');return}say('Working...');
+await (S.mode==='up'?createUserWithEmailAndPassword:signInWithEmailAndPassword)(auth,em,pw);location.hash='#dash';return}
+if(d.reset!==undefined){const em=val('em');if(!em){say('Enter your email first.');return}await sendPasswordResetEmail(auth,em);say('Password reset email sent.');return}
+if(d.prof!==undefined){const n=val('ln');if(!n){say('Enter a display name.');return}await setDoc(doc(db,'profiles',UID),{role:document.getElementById('lr').value,name:n});location.hash='#dash';return}
+if(!u)return;
+if(d.book){const my=S.bookings.filter(b=>b.guestId===UID).map(({id,listing})=>({id,listing}));await setDoc(doc(db,'bookings',UID),{guest:u.name,items:[...my,{id:Date.now().toString(36),listing:d.book}]})}
+else if(d.conf)await setDoc(doc(db,'confirmations',d.conf),{ok:true});
+else if(d.ok||d.no)await setDoc(doc(db,'approvals',d.ok||d.no),{status:d.ok?'approved':'rejected'});
+else if(d.add!==undefined){const n=val('n'),p=+val('p');if(!n||!(p>0)){say('Enter a name and a price above 0.');return}
+const my=S.listings.filter(l=>l.ownerId===UID).map(({id,name,type,beach,price})=>({id,name,type,beach,price}));
+await setDoc(doc(db,'listings',UID),{owner:u.name,items:[...my,{id:Date.now().toString(36),name:n,type:val('t'),beach:val('bh'),price:p}]})}
+}catch(err){say(nice(err))}},true);
+const shrink=f=>new Promise((ok,no)=>{const i=new Image();i.onload=()=>{const k=Math.min(1,1100/i.width),c=document.createElement('canvas');c.width=i.width*k;c.height=i.height*k;c.getContext('2d').drawImage(i,0,0,c.width,c.height);ok(c.toDataURL('image/jpeg',.72))};i.onerror=no;i.src=URL.createObjectURL(f)});
+document.addEventListener('change',async e=>{if(!S.live)return;const n=e.target.dataset.score,p=e.target.dataset.photo;
+if(n){const o={};for(const k in S.beaches)o[k]=S.beaches[k].s;try{await setDoc(doc(db,'config','scores'),o)}catch(x){warn(nice(x))}}
+if(p&&e.target.files[0]){const m=document.getElementById('pm');m.textContent='Uploading...';try{const url=await shrink(e.target.files[0]);await setDoc(doc(db,'photos',p),{url});S.photos[p]=url;draw()}catch(x){m.textContent='Upload failed: '+nice(x)}}});
