@@ -57,7 +57,7 @@ else return;draw()});
 document.addEventListener('change',e=>{const n=e.target.dataset.score;if(n)S.beaches[n].s=Math.max(0,Math.min(100,+e.target.value||0))});
 
 // ===== Firebase settings: paste yours from Project settings > Your apps > Web app =====
-const CFG={apiKey:"YOUR_API_KEY",authDomain:"YOUR_PROJECT_ID.firebaseapp.com",projectId:"YOUR_PROJECT_ID",appId:"YOUR_APP_ID"};
+const CFG={apiKey: "AIzaSyDlAdQNIJmtrH23U20DAJyDiIg_i_4k-3Y",authDomain:"blue-wellbeing-ai.firebaseapp.com",projectId:"blue-wellbeing-ai",appId:"1:478684131150:web:b429172d72db185b90381f"};
 let auth,db,UID=null,IS_ADMIN=false,priv=[];const A={};
 window.addEventListener('hashchange',draw);draw();
 const warn=t=>{const b=document.getElementById('ban');b.hidden=false;b.firstChild.textContent=t};
