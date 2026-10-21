@@ -13,7 +13,7 @@ const chips=(arr,cur,k)=>`<div class="chips">${arr.map(n=>`<button class="chip" 
 const bars=b=>b.f.map(x=>`<div class="bar"><span>${x[0]}</span><div><i style="width:${x[1]}%"></i></div><b>${x[1]}</b></div>`).join('');
 const idx=()=>{const b=S.beaches[S.beach];return `<div class="card">${ph(S.beach)}${chips(Object.keys(S.beaches),S.beach,'beach')}<div class="big">${b.s}<small>/100</small></div><p class="sub" style="margin:6px 0">${S.beach} is best for ${b.b}.</p>${bars(b)}</div>`};
 function nav(p){const u=S.user,l=[['home','Home'],['beaches','Beaches'],['features','Features'],['market','Marketplace'],['about','About']];
-document.getElementById('nav').innerHTML=l.map(x=>`<a href="#${x[0]}" ${p===x[0]?'aria-current="page"':''}>${x[1]}</a>`).join('')+(u?`<a href="#dash" class="cta" ${p==='dash'?'aria-current="page"':''}>Dashboard</a><button class="lk" data-out>Log out</button>`:`<a href="#login" class="cta" ${p==='login'?'aria-current="page"':''}>${S.fbUser?'Finish sign-up':'Login'}</a>${S.fbUser?'<button class="lk" data-out>Log out</button>':''}`)}
+document.getElementById('nav').innerHTML=l.map(x=>`<a href="#${x[0]}" ${p===x[0]?'aria-current="page"':''}>${x[1]}</a>`).join('')+(u?`<a href="#dash" class="cta" ${p==='dash'?'aria-current="page"':''}>Dashboard</a><button class="lk" data-out>Log out</button>`:`<a href="#login" class="cta" ${p==='login'?'aria-current="page"':''}>Login</a>`)}
 const P={
 home:()=>`<div class="hero"><div class="wrap hg"><div><h1>Blue<br>Wellbeing <span>AI</span></h1><p class="tg">Your AI-powered coastal wellness companion</p><p class="sub">Combining tourism, wellness, AI and coastal resources, the app goes beyond recommending beaches. It becomes a complete wellness companion for tourists visiting the Kenyan coast.</p><a class="btn" href="#beaches">See beach scores</a> <a class="btn alt" href="#login">Log in</a></div>
 <div class="card">${ph('Diani')}<h3>Today at Diani Beach</h3><div class="big">${S.beaches.Diani.s}<small>/100</small></div><p class="sub" style="margin:6px 0 0">Excellent conditions for a sunrise yoga session.</p></div></div></div>
@@ -81,7 +81,7 @@ else{const app=initializeApp(CFG);auth=getAuth(app);db=getFirestore(app);S.live=
 const weak=p=>p.length<8?'Use at least 8 characters.':!/[a-z]/.test(p)?'Add a lowercase letter.':!/[A-Z]/.test(p)?'Add an uppercase letter.':!/\d/.test(p)?'Add a number.':!/[^A-Za-z0-9]/.test(p)?'Add a symbol such as ! or @.':'';
 const nice=e=>({'auth/invalid-credential':'Wrong email or password. Check both, use Forgot password, or create an account if you are new.','auth/too-many-requests':'Too many attempts. Wait a few minutes, then try again or use Forgot password.','auth/email-already-in-use':'That email already has an account.','auth/weak-password':'Use a stronger password of at least 8 characters.','auth/password-does-not-meet-requirements':'That password is too weak. Use 8+ characters with uppercase, lowercase, a number and a symbol.','auth/invalid-email':'Enter a valid email address.','permission-denied':'Not allowed. Check your role and the Firestore rules.'}[e.code&&e.code.replace('firestore/','')]||('Could not complete that ('+(e.code||e.message)+').'));
 document.addEventListener('click',async e=>{if(!S.live)return;const t=e.target.closest('button');if(!t)return;const d=t.dataset,u=S.user;
-if(![['book','conf','ok','no','add','out','auth','mode','reset','prof','cancel']].some(k=>d[k]!==undefined))return;e.stopImmediatePropagation();
+if(!['book','conf','ok','no','add','out','auth','mode','reset','prof','cancel'].some(k=>d[k]!==undefined))return;e.stopImmediatePropagation();
 const say=x=>{const o=document.getElementById('msg');o?o.textContent=x:warn(x)},val=i=>document.getElementById(i).value.trim();
 try{
 if(d.mode!==undefined){S.mode=S.mode==='up'?'in':'up';draw();return}
@@ -89,7 +89,7 @@ if(d.out!==undefined){await signOut(auth);location.hash='#home';location.reload(
 if(d.auth!==undefined){const em=val('em'),pw=document.getElementById('pw').value;if(!em||!pw){say('Enter your email and password.');return}if(S.mode==='up'){const w=weak(pw);if(w){say(w);return}}say('Working...');
 await (S.mode==='up'?createUserWithEmailAndPassword:signInWithEmailAndPassword)(auth,em,pw);location.hash='#dash';return}
 if(d.reset!==undefined){const em=val('em');if(!em){say('Enter your email first.');return}await sendPasswordResetEmail(auth,em);say('Password reset email sent.');return}
-if(d.prof!==undefined){const n=val('ln');if(!n){say('Enter a display name.');return}await setDoc(doc(db,'profiles',UID),{role:document.getElementById('lr').value,name:n});location.hash='#dash';return}
+if(d.prof!==undefined){const n=val('ln');if(!n){say('Enter a display name.');return}say('Saving...');const role=document.getElementById('lr').value;await setDoc(doc(db,'profiles',UID),{role,name:n});A.profile={role,name:n};rebuild();location.hash='#dash';return}
 if(!u)return;
 if(d.book){const my=S.bookings.filter(b=>b.guestId===UID).map(({id,listing})=>({id,listing}));await setDoc(doc(db,'bookings',UID),{guest:u.name,items:[...my,{id:Date.now().toString(36),listing:d.book}]});location.hash='#dash'}
 else if(d.cancel){const keep=S.bookings.filter(b=>b.guestId===UID&&b.id!==d.cancel).map(({id,listing})=>({id,listing}));await setDoc(doc(db,'bookings',UID),{guest:u.name,items:keep})}
